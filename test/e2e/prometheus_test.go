@@ -28,8 +28,11 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/expfmt"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"antrea.io/antrea/pkg/util/testutil"
 )
 
 // Agent metrics to validate
@@ -171,6 +174,13 @@ func testPrometheusMetricsOnPods(t *testing.T, data *TestData, component string,
 				address := net.JoinHostPort(hostIP, fmt.Sprint(hostPort))
 				t.Logf("Found %s", address)
 				respBody := getMetricsFromApiServer(t, fmt.Sprintf("https://%s/metrics", address), token)
+
+				linter := testutil.NewPromLinter(strings.NewReader(respBody))
+				problems, err := linter.Lint()
+				if err != nil {
+					t.Fatalf("Errors during linting")
+				}
+				assert.Empty(t, problems)
 
 				parsed, err := parser.TextToMetricFamilies(strings.NewReader(respBody))
 				if err != nil {
@@ -334,4 +344,8 @@ func TestPrometheusServerAgentMetrics(t *testing.T) {
 	defer teardownTest(t, data)
 
 	testMetricsFromPrometheusServer(t, data, "antrea-agents", antreaAgentMetrics)
+}
+
+func TestLintingErrors(t *testing.T) {
+
 }
